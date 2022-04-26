@@ -1,2 +1,10 @@
-tensorflow >= 1.11.0   # CPU Version of TensorFlow.
+# tf.flags, tf.app, tf.logging ... VS tf.compat.v1.flags, tf.compat.v1.app, tf.compat.v1.logging ...
+tensorflow==1.15
+# https://stackoverflow.com/a/65993776/11814682
+numpy==1.19.5
+# https://github.com/Tikquuss/intrinsics_dimension
+intrinsics-dimension==0.1.0
+
+# official repo : https://github.com/google-research/bert
+# tensorflow >= 1.11.0   # CPU Version of TensorFlow.
 # tensorflow-gpu  >= 1.11.0  # GPU version of TensorFlow.

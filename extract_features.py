@@ -23,6 +23,9 @@ import collections
 import json
 import re
 
+from intrinsics_dimension import mle_id, twonn_pytorch
+ID_functions = {"twonn" : twonn_pytorch, "mle" : mle_id}
+
 import modeling
 import tokenization
 import tensorflow as tf
@@ -207,10 +210,31 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_tpu,
   return model_fn
 
 
-def convert_examples_to_features(examples, seq_length, tokenizer):
+def convert_examples_to_features(examples, seq_length, tokenizer, start_with_pad = False):
   """Loads a data file into a list of `InputBatch`s."""
-
   features = []
+  if start_with_pad :
+      #tokens = ["[CLS]", "[PAD]", "[SEP]"]
+      tokens = ["[PAD]"]
+      input_ids = tokenizer.convert_tokens_to_ids(tokens)
+      input_type_ids = [0] * len(tokens)
+      input_mask = [1] * len(input_ids)
+      # Zero-pad up to the sequence length.
+      while len(input_ids) < seq_length:
+          input_ids.append(0)
+          input_mask.append(0)
+          input_type_ids.append(0)
+      features.append(
+          InputFeatures(
+              unique_id=-1,
+              tokens=tokens,
+              input_ids=input_ids,
+              input_mask=input_mask,
+              input_type_ids=input_type_ids
+          )
+      )
+
+  ###########################
   for (ex_index, example) in enumerate(examples):
     tokens_a = tokenizer.tokenize(example.text_a)
 
@@ -360,7 +384,7 @@ def main(_):
   examples = read_examples(FLAGS.input_file)
 
   features = convert_examples_to_features(
-      examples=examples, seq_length=FLAGS.max_seq_length, tokenizer=tokenizer)
+      examples=examples, seq_length=FLAGS.max_seq_length, tokenizer=tokenizer, start_with_pad = False)
 
   unique_id_to_feature = {}
   for feature in features:
@@ -387,12 +411,24 @@ def main(_):
   with codecs.getwriter("utf-8")(tf.gfile.Open(FLAGS.output_file,
                                                "w")) as writer:
     for result in estimator.predict(input_fn, yield_single_examples=True):
+
+      # print("\n\n\n*******")
+      # print(result)
+      # print("\n\n\n*******")
+      # print(len(result["layer_output_0"]))
+      # for k, v in result.items() :
+      #     print(k, "\n *** \n" , v)
+      # print("\n\n\n*******")
+
       unique_id = int(result["unique_id"])
       feature = unique_id_to_feature[unique_id]
       output_json = collections.OrderedDict()
       output_json["linex_index"] = unique_id
       all_features = []
       for (i, token) in enumerate(feature.tokens):
+      # for i in range(FLAGS.max_seq_length):
+      #     try : token = feature.tokens[i]
+      #     except IndexError : token = "[PAD]"
         all_layers = []
         for (j, layer_index) in enumerate(layer_indexes):
           layer_output = result["layer_output_%d" % j]
@@ -406,10 +442,29 @@ def main(_):
         features["token"] = token
         features["layers"] = all_layers
         all_features.append(features)
+
+      include_pad = True
+      if include_pad :
+          for i in range(len(feature.tokens), FLAGS.max_seq_length):
+            all_layers = []
+            token = "[PAD]"
+            for (j, layer_index) in enumerate(layer_indexes):
+              layer_output = result["layer_output_%d" % j]
+              layers = collections.OrderedDict()
+              layers["index"] = layer_index
+              layers["values"] = [
+                  round(float(x), 6) for x in layer_output[i:(i + 1)].flat
+              ]
+              all_layers.append(layers)
+            features = collections.OrderedDict()
+            features["token"] = token
+            features["layers"] = all_layers
+            all_features.append(features)
+
       output_json["features"] = all_features
       writer.write(json.dumps(output_json) + "\n")
 
-
+ 
 if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
   flags.mark_flag_as_required("vocab_file")
