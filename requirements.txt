@@ -4,6 +4,9 @@ tensorflow==1.15
 numpy==1.19.5
 # https://github.com/Tikquuss/intrinsics_dimension
 intrinsics-dimension==0.1.0
+#
+wandb
+#torch
 
 # official repo : https://github.com/google-research/bert
 # tensorflow >= 1.11.0   # CPU Version of TensorFlow.

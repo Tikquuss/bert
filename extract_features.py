@@ -22,9 +22,7 @@ import codecs
 import collections
 import json
 import re
-
-from intrinsics_dimension import mle_id, twonn_pytorch
-ID_functions = {"twonn" : twonn_pytorch, "mle" : mle_id}
+import tqdm
 
 import modeling
 import tokenization
@@ -149,7 +147,7 @@ def input_fn_builder(features, seq_length):
 
 
 def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_tpu,
-                     use_one_hot_embeddings):
+                     use_one_hot_embeddings, verbose = True):
   """Returns `model_fn` closure for TPUEstimator."""
 
   def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
@@ -186,13 +184,14 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_tpu,
     else:
       tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
-    tf.logging.info("**** Trainable Variables ****")
-    for var in tvars:
-      init_string = ""
-      if var.name in initialized_variable_names:
-        init_string = ", *INIT_FROM_CKPT*"
-      tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape,
-                      init_string)
+    if verbose :
+      tf.logging.info("**** Trainable Variables ****")
+      for var in tvars:
+        init_string = ""
+        if var.name in initialized_variable_names:
+          init_string = ", *INIT_FROM_CKPT*"
+        tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape,
+                        init_string)
 
     all_layers = model.get_all_encoder_layers()
 
@@ -210,7 +209,7 @@ def model_fn_builder(bert_config, init_checkpoint, layer_indexes, use_tpu,
   return model_fn
 
 
-def convert_examples_to_features(examples, seq_length, tokenizer, start_with_pad = False):
+def convert_examples_to_features(examples, seq_length, tokenizer, already_tokenize=False, start_with_pad = False):
   """Loads a data file into a list of `InputBatch`s."""
   features = []
   if start_with_pad :
@@ -233,14 +232,12 @@ def convert_examples_to_features(examples, seq_length, tokenizer, start_with_pad
               input_type_ids=input_type_ids
           )
       )
-
   ###########################
-  for (ex_index, example) in enumerate(examples):
-    tokens_a = tokenizer.tokenize(example.text_a)
-
-    tokens_b = None
-    if example.text_b:
-      tokens_b = tokenizer.tokenize(example.text_b)
+  for (ex_index, example) in tqdm.tqdm(enumerate(examples), desc="convert examples to features ..."):
+    if already_tokenize : tokens_a, tokens_b = example.text_a, example.text_b
+    else :
+      tokens_a, tokens_b = tokenizer.tokenize(example.text_a), None
+      if example.text_b: tokens_b = tokenizer.tokenize(example.text_b)
 
     if tokens_b:
       # Modifies `tokens_a` and `tokens_b` in place so that the total

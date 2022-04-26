@@ -10,7 +10,7 @@ output_path=/content/test
 # echo 'Who was Jim Henson ?' >> $output_path/input.txt
 # echo 'Jim Henson was a puppeteer' >> $output_path/input.txt
 
-# filename=extract_features.sh
+# filename=intrinsic_dim.sh
 # cat $filename | tr -d '\r' > $filename.new && rm $filename && mv $filename.new $filename 
 
 python intrinsic_dim.py \
